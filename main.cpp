@@ -5,40 +5,44 @@
 #include <windows.h>
 #include <io.h>
 
-static const QString FILE_PATH = "./example.txt";
+static const QString DIR_NAME = "./";
+static const QString FILE_PATH = DIR_NAME + "example.txt";
+
 static const QString text = "poop";
 
+bool dirExists(const QString &path);
 void writeText(const QString &text);
+void printFileSize();
 
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 
 #ifdef _WIN32
-    QFile qFile("./example.txt");
-
-    writeText(text);
-    qFile.open(QIODevice::ReadOnly);
-
-    auto fd = qFile.handle();    // C descriptor
-    HANDLE hFile = reinterpret_cast<HANDLE>(_get_osfhandle(fd));
-
-    auto dwSize = GetFileSize (hFile, nullptr);
-    if (dwSize == INVALID_FILE_SIZE)
+    if(dirExists(QFile(DIR_NAME).fileName()))
     {
-        auto dwError = GetLastError() ;
-        qWarning() << QString("Error %1").arg(dwError);
+        writeText(text);
+        printFileSize();
     }
     else
     {
-        qInfo() << QString("Success, size is %1").arg(dwSize);
+        qCritical() << "Directory is not exist";
     }
 #endif
 
     return a.exec();
 }
 
-void writeText(const QString &text) {
+#ifdef _WIN32
+bool dirExists(const QString &path)
+{
+    DWORD const f_attrib = GetFileAttributesA(path.toStdString().c_str());
+    return f_attrib != INVALID_FILE_ATTRIBUTES &&
+           (f_attrib & FILE_ATTRIBUTE_DIRECTORY);
+}
+
+void writeText(const QString &text)
+{
     QFile qFile(FILE_PATH);
     qFile.open(QIODevice::WriteOnly);
 
@@ -49,3 +53,24 @@ void writeText(const QString &text) {
     qFile.write(data, text.length());
     qFile.close();
 }
+
+void printFileSize()
+{
+    QFile qFile(FILE_PATH);
+    qFile.open(QIODevice::ReadOnly);
+
+    auto fd = qFile.handle();    // C descriptor
+    HANDLE hFile = reinterpret_cast<HANDLE>(_get_osfhandle(fd));
+
+    auto dwSize = GetFileSize (hFile, nullptr);
+    if (dwSize == INVALID_FILE_SIZE)
+    {
+        auto dwError = GetLastError() ;
+        qCritical() << QString("Error %1").arg(dwError);
+    }
+    else
+    {
+        qInfo() << QString("Success, size is %1").arg(dwSize);
+    }
+}
+#endif
